@@ -7,7 +7,8 @@ import as3hx.Parser;
 
 class ClassParser {
 
-    public static function parse(tokenizer:Tokenizer, types:Types, cfg:Config, path:String, filename:String, kwds:Array<String>, meta:Array<Expr>,isInterface:Bool) : ClassDef {
+    public static function parse(tokenizer:Tokenizer, types:Types, cfg:Config, path:String, filename:String,
+                                 kwds:Array<String>, meta:Array<Expr>,isInterface:Bool, condBlock: ConditionalBlock) : ClassDef {
         var parseType = TypeParser.parse.bind(tokenizer, types, cfg);
         var parseMetadata = MetadataParser.parse.bind(tokenizer, types, cfg);
         var parseClassVar = parseVar.bind(tokenizer, types, cfg);
@@ -16,6 +17,7 @@ class ClassParser {
         var parseUse = UseParser.parse.bind(tokenizer);
         var parseInclude = IncludeParser.parse.bind(tokenizer, path, filename);
         var parseImport = ImportParser.parse.bind(tokenizer, cfg);
+        Debug.dbgln("parseStructure("+kwds+")", tokenizer.line);
 
         var cname = tokenizer.id();
         var classMeta = meta;
@@ -25,6 +27,21 @@ class ClassParser {
         var fields = new Array();
         var impl = [], extend = null, inits = [];
         var condVars:Array<String> = [];
+
+	    //--- Empty the conditional block since here we don't need it. Put the empty ECondComp in the class meta,
+	    // together with all other expressions.
+	    var inCondBlock: Bool = false;
+	    if (condBlock != null && !condBlock.isClosed) {
+		    classMeta.push(ECondComp(condBlock.name, null, null));
+		    for (e in condBlock.exprs) {
+			    classMeta.push(e);
+		    }
+		    condBlock.isClosed = true;
+		    inCondBlock = true;
+	    }
+		//------------- end of Empty the conditional block
+
+	    // Parse "extends" and "implements"
         while( true ) {
             if( ParserUtils.opt(tokenizer, TId("implements")) ) {
                 impl.push(parseType());
@@ -220,7 +237,7 @@ class ClassParser {
             }
         }
         };
-        pf(false, false);
+        pf(false, inCondBlock);
 
         //trace("*** " + meta);
         for(m in meta) {

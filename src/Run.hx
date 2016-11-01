@@ -2,6 +2,7 @@ using StringTools;
 
 import as3hx.Writer;
 import as3hx.Error;
+import as3hx.Debug;
 import sys.FileSystem;
 import sys.io.File;
 using haxe.io.Path;
@@ -39,7 +40,10 @@ class Run {
                 Sys.println("source AS3 file: " + file);
                 var p = new as3hx.Parser(cfg);
                 var content = File.getContent(file);
-                var program = try p.parseString(content, src, f) catch(e : Error) {
+                var program = null;
+                try {
+                  program = p.parseString(content, src, f);
+                } catch(e : Error) {
                     #if macro
                     File.stderr().writeString(file + ":" + p.tokenizer.line + ": " + errorString(e) + "\n");
                     #end
@@ -59,6 +63,7 @@ class Run {
                 ensureDirectoryExists(out);
                 var name = out.addTrailingSlash() + Writer.properCase(f.substr(0, -3), true) + ".hx";
                 Sys.println("target HX file: " + name);
+                 Debug.dbgln("Run.loop program " + program);
                 var fw = File.write(name, false);
                 warnings.set(name, writer.process(program, fw));
                 fw.close();

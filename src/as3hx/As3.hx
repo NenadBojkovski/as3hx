@@ -74,6 +74,12 @@ typedef Function = {
     var expr : Null<Expr>;
 }
 
+typedef ConditionalBlock = {
+    var exprs : Array<Expr>;
+    var name : String;
+	var isClosed : Bool;
+}
+
 typedef ClassField = {
     var meta : Array<Expr>;
     var kwds : Array<String>;

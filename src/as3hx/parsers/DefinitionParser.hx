@@ -5,7 +5,8 @@ import as3hx.Parser;
 
 class DefinitionParser {
 
-    public static function parse(tokenizer:Tokenizer, types:Types, cfg:Config, path:String, filename:String, meta:Array<Expr>) : Definition {
+    public static function parse(tokenizer:Tokenizer, types:Types, cfg:Config, path:String, filename:String,
+                                 meta:Array<Expr>, condBlock: ConditionalBlock) : Definition {
         var parseClass = ClassParser.parse.bind(tokenizer, types, cfg);
         var parseFunDef = FunctionParser.parseDef.bind(tokenizer, types, cfg);
         var parseNsDef = NsParser.parse.bind(tokenizer);
@@ -21,11 +22,11 @@ class DefinitionParser {
                 parseUse();
                 continue;
             case "class":
-                var c = parseClass(path, filename, kwds,meta,false);
+                var c = parseClass(path, filename, kwds,meta,false, condBlock);
                 types.defd.push(c);
                 return CDef(c);
             case "interface":
-                var c = parseClass(path, filename, kwds,meta,true);
+                var c = parseClass(path, filename, kwds,meta,true, condBlock);
                 types.defd.push(c);
                 return CDef(c);
             case "function":

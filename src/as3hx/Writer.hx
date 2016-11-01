@@ -257,6 +257,7 @@ class Writer
     }
 
     function writeMetaData(data:Array<Expr>) {
+        Debug.openDebug("Writer writeMetaData " + data, 260, true);
         if(data == null)
             return;
 
@@ -272,14 +273,20 @@ class Writer
                 writeNL();
                 writeIndent();
             case ECondComp(v,e, e2):
-                if (isFirstCondComp) {
+	            writeExpr(d);
+	            if (e != null) { // if ECondComp already contains the block it surrounds,
+	            // remove the conditional from meta data, so no additional "#end" will be written. The writeExpr will
+	            // take care of it.
+	                data.remove(d);
+	            }
+                /*if (isFirstCondComp) {
                     write("#if ");
                     isFirstCondComp = false;
                 }
                 else {
                     write(" && ");
-                } 
-                write(v);
+                }
+                write(v);*/
             case EImport(i):
                 writeImport(i);
             default:
@@ -1096,6 +1103,7 @@ class Writer
      * @return if the block requires a terminating ;
      */
     function writeExpr(?expr : Expr) : BlockEnd {
+        Debug.openDebug("Writer writeExpr " + expr, 1107, true);
         if(cfg.debugExpr)
             write(" /* " + Std.string(expr) + " */ ");
 
@@ -1414,31 +1422,42 @@ class Writer
                 writeECondComp = function(e) {
                     switch(e) {
                         case EBlock(elist):
+                            var firstExpr: Expr = null;
                             for (ex in elist) {
+	                            // If there isn't new line after the compilier conditional add one,
+	                            // otherwise it will append the next expression to the  compilier conditional
+	                            if (firstExpr == null && !ex.match(ENL(_))) {
+	                                firstExpr = ex;
+		                            writeNL();
+		                            writeIndent();
+	                            }
                                 writeFinish(writeExpr(ex));
                             }
+
                         case ENL(e): 
                             writeECondComp(e);
                         case ECommented(s,b,t,e): writeECondComp(e);
                         default:
+	                        writeNL();
                             writeIndent();
                             writeFinish(writeExpr(e));
                     }
                 }
 
                 write("#if " + kwd);
-                writeECondComp(e);
-                writeNL();
-                if (e2 != null) {
-                    writeIndent("#else");
-                    writeECondComp(e2);
-                    writeNL();
-                }
-                writeIndent("#end // " + kwd);
-                writeNL();
-                writeIndent();
-                rv = Ret;
-
+	            if (e != null) {
+	                writeECondComp(e);
+	                writeNL();
+	                if (e2 != null) {
+	                    writeIndent("#else");
+	                    writeECondComp(e2);
+	                    writeNL();
+	                }
+	                writeIndent("#end // " + kwd);
+	                writeNL();
+	                writeIndent();
+	                rv = Ret;
+	            }
             case ENL(e):
                 //newline starts new indented line before parsing
                 //wrapped expression
@@ -1446,6 +1465,8 @@ class Writer
                 writeIndent();
                 rv = writeExpr(e);
             case EImport(s):
+	            writeImport(s);
+	            rv = None;
         }
         return rv;
     }
@@ -2045,6 +2066,7 @@ class Writer
     function writeEBinop(op:String, e1:Expr, e2:Expr, newLineAfterOp:Bool):BlockEnd {
         if(op == "as") {
             switch(e2) {
+                case ENL(s): writeEBinop(op, e1, s, newLineAfterOp);
                 case EIdent(s):
                     switch(s) {
                         case "String": writeToString(e1);
@@ -3502,6 +3524,8 @@ class Writer
                 neko.Lib.println;
             #elseif cpp
                 cpp.Lib.println;
+            #else 
+                Sys.println;    
             #end
         for(warn in wke.keys()) {
             var a = wke.get(warn);

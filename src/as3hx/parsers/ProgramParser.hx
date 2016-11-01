@@ -47,30 +47,42 @@ class ProgramParser {
         var inits : Array<Expr> = [];
         var defs = [];
         var meta : Array<Expr> = [];
-        var closed = false;
+        var closed: Bool = false;
         var inNamespace = false;
-        var inCondBlock = false;
         var outsidePackage = false;
         var hasOustidePackageMetaImport = false;
+        var condBlock: ConditionalBlock = null;
+	    var getExpressionContainer: Array<Expr> -> ConditionalBlock -> Array<Expr> = function (metaArray: Array<Expr>,
+	                                                                              conditionalBlock: ConditionalBlock) {
+		    if (condBlock != null && !condBlock.isClosed) {
+			    return conditionalBlock.exprs;
+		    }
+		    return metaArray;
+	    }
 
         var pf : Bool->Void = null;
         pf = function(included:Bool) {
         while( true ) {
             var tk = tokenizer.token();
+            Debug.dbgln("Current token "+tk);
             switch( tk ) {
             case TBrClose: // }
+	            Debug.dbgln("TBrClose "+inNamespace + " " +closed +" "+condBlock);
                 if( inNamespace ) {
                     inNamespace = false;
                     continue;
+                } else if( !closed && (condBlock == null || condBlock.isClosed)) {
+	                closed = true;
+	                outsidePackage = true;
+	                continue;
                 }
-                else if( !closed ) {
-                    closed = true;
-                    outsidePackage = true;
-                    continue;
-                }
-                else if (inCondBlock) {
-                    inCondBlock = false;
-                    continue;
+                else if (condBlock != null) {
+	                    if (!condBlock.isClosed) {
+	                        meta.push(ECondComp(condBlock.name, EBlock(condBlock.exprs), null));
+	                    }
+	                    Debug.dbgln("Conditional Compilation Closed from TBrClose "+meta);
+		                condBlock = null;
+                        continue;
                 }
             case TBrOpen: // {
                 if(inNamespace)
@@ -99,7 +111,7 @@ class ProgramParser {
                     //are stored as meta, this way, comments can be kept
                     if (impt.length > 0) {
                         if (!outsidePackage) {
-                            meta.push(EImport(impt));
+	                        getExpressionContainer(meta, condBlock).push(EImport(impt));
                         }
                         //coner case : import for AS3 private class, for those,
                         //need to add them to regular import list or to first
@@ -157,7 +169,7 @@ class ProgramParser {
                 case "final", "public", "class", "internal", "interface", "dynamic", "function":
                     inNamespace = false;
                     tokenizer.add(tk);
-                    var d = parseDefinition(path, filename, meta);
+                    var d = parseDefinition(path, filename, meta, condBlock);
                     switch(d) {
                         case CDef(c):
                             for(i in c.imports)
@@ -202,11 +214,22 @@ class ProgramParser {
                             // this is a user supplied conditional compilation variable
                             Debug.openDebug("conditional compilation: " + ns + "::" + id, tokenizer.line);
                            // condVars.push(ns + "_" + id);
-                            meta.push(ECondComp(ns + "_" + id, null, null));
-                            inCondBlock = true;
+                           // meta.push(ECondComp(ns + "_" + id, null, null));
+	                        if (condBlock != null) { // This is the case with a nested  Cond vars which is not
+	                        // covered yet
+		                        //condBlock.vars.push(ns + "_" + id);
+	                        }
+                            condBlock = {exprs: [], name: ns + "_" + id, isClosed: false};
+	                        // Conditional block is introduced and only used for wrapping an imports with the
+	                        // compiler conditional. Since the imports as well as other expressions are just pushed
+	                        // into meta array, we need to be somehow able to group them in conditional block.
+	                      //  condBlock = {exprs: [], name: ns + "_" + id, isClosed: false};
                             t = tokenizer.token();
                             switch (t) {
                                 case TBrOpen:
+                                    pf(false);
+                                case TNL(TBrOpen):
+	                                condBlock.exprs.push(ENL(null));
                                     pf(false);
                                 default:
                                     tokenizer.add(t);
@@ -236,7 +259,7 @@ class ProgramParser {
             case TSemicolon:
                 continue;
             case TNL(t):
-                meta.push(ENL(null));
+	            getExpressionContainer(meta, condBlock).push(ENL(null));
                 tokenizer.add(t);
                 continue;
             case TCommented(s,b,t):
@@ -244,11 +267,11 @@ class ProgramParser {
                 switch(t) {
                     case TBkOpen:
                         tokenizer.add(t);
-                        meta.push(ParserUtils.makeECommented(tk, parseMetadata()));
+	                    getExpressionContainer(meta, condBlock).push(ParserUtils.makeECommented(tk, parseMetadata()));
                         continue;
                     default:
                         tokenizer.add(t);
-                        meta.push(ParserUtils.makeECommented(tk, null));
+	                    getExpressionContainer(meta, condBlock).push(ParserUtils.makeECommented(tk, null));
                 }
                 continue;
             default:
@@ -264,7 +287,7 @@ class ProgramParser {
         if(defs.length > 0) {
             switch(defs[0]) {
                 case CDef(c):
-                    var enl = ENL(null);
+                   var enl = ENL(null);
                     var isEImport:Expr->Bool = function(e) return e.match(EImport(_));
                     var meta = [];
                     for(it in c.meta.filter(isEImport)) {
