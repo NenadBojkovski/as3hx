@@ -36,11 +36,31 @@ class ExprParser {
             tk = tokenizer.token();
             
             Debug.dbgln("parseExpr: " + tk, tokenizer.line);
-            
+
             switch(ParserUtils.removeNewLine(tk, false)) {
             case TBrClose:
                 if(funcStart) return EBlock([]);
                 return parseExprNext(EObject([]), 0);
+            case TCommented(s,b,t): // if there is a comment right after opening bracket check if it is an object
+                // initialization. See example bellow
+                /*var obj: Object = { // NO PMD
+                    a: 2,
+                    b: "dsadasdas",
+                    c: new Object()
+                }*/
+                switch(ParserUtils.uncomment(ParserUtils.removeNewLine(tk))) {
+                    case TId(_), TConst(_):
+                        var tk2 = tokenizer.token();
+                        tokenizer.add(tk2);
+                        tokenizer.add(tk);
+                        switch( tk2 ) {
+                            case TColon:
+                                return parseExprNext(parseObject(), 0);
+                            default:
+                        }
+                    default:
+                        tokenizer.add(tk);
+                }
             case TId(_), TConst(_):
                 var tk2 = tokenizer.token();
                 tokenizer.add(tk2);

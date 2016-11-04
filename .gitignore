@@ -1,4 +1,9 @@
 bin/
 build/
 report/
+debug/
+cpp/
+java/
+.idea/
+.vscode/
 run.n
