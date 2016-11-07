@@ -1342,8 +1342,26 @@ class Writer
                 // Vector.<T> call
                 // _buffers = Vector.<MyType>([inst1,inst2]);
                 // t is TPath([inst1,inst2]), which should have been handled in ECall
-                write("Array/*Vector.<T> call?*/");
-                addWarning("Vector.<T>", true);
+                var typesString: String = null;
+                switch(t) {
+                    case TPath(p):
+                        for(type in p) {
+                            if (typesString != null) {
+                                typesString += ", ";
+                            }
+                            typesString = type;
+                        };
+                    default:
+                }
+
+                if (typesString == null) {
+                    write("Array/*Vector.<T> call?*/");
+                    addWarning("Vector.<T>", true);
+                } else {
+                    write("Array<"+typesString+">");
+                   // addWarning("Vector.<T>", false);
+                }
+
             case EE4XAttr( e1, e2 ):
                 // e1.@e2
                 writeExpr(e1);
@@ -2075,7 +2093,7 @@ class Writer
                         case "Array":
                             write("try cast(");
                             writeExpr(e1);
-                            write(", Array</*AS3HX WARNING no type*/>) catch(e:Dynamic) null");
+                            write(", Array<Dynamic/*AS3HX WARNING no type*/>) catch(e:Dynamic) null");
                             addWarning("as array", true);
                         case "Class":
                             addWarning("as Class",true);
@@ -2486,6 +2504,8 @@ class Writer
     
     inline function writeEDelete(e:Expr) {
         switch(e) {
+            case EParent(e):
+                writeEDelete(e);
             case EArray(a, i):
                 var atype = getExprType(a);
                 if (atype != null) {
@@ -2510,9 +2530,13 @@ class Writer
                         }
                         writeExpr(ECall(EField(EIdent("Reflect"), "deleteField"), [a, i]));
                     } else if(atype == "Dictionary") {
-                        addWarning("EDelete");
+                       /* addWarning("EDelete");
                         writeNL("This is an intentional compilation error. See the README for handling the delete keyword");
-                        writeIndent('delete ${getIdentString(a)}[${getIdentString(i)}]');
+                        writeIndent('delete ${getIdentString(a)}[${getIdentString(i)}]');*/
+                        writeExpr(a);
+                        write(".remove(");
+                        writeExpr(i);
+                        write(")");
                     }
                 }
             default: 

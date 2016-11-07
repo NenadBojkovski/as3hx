@@ -101,6 +101,11 @@ class Run {
     static var cfg : as3hx.Config;
     
     public static function main() {
+        #if debug
+          // new debugger.HaxeRemote(true, "localhost");
+            new debugger.Local(true);
+        #end   
+
         cfg = new as3hx.Config();
         loop(cfg.src, cfg.dst, cfg.excludePaths);
         Sys.println("");
