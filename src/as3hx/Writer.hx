@@ -1358,7 +1358,7 @@ class Writer
                     write("Array/*Vector.<T> call?*/");
                     addWarning("Vector.<T>", true);
                 } else {
-                    write("Array<"+typesString+">");
+                    write(cfg.vectorToArray ? "Array<" + typesString + ">" : "Vector<" + typesString + ">");
                    // addWarning("Vector.<T>", false);
                 }
 
