@@ -2091,10 +2091,13 @@ class Writer
                         case "int": writeCastToInt(e1);
                         case "Number": writeCastToFloat(e1);
                         case "Array":
-                            write("try cast(");
+                         /*   write("try cast(");
                             writeExpr(e1);
-                            write(", Array<Dynamic/*AS3HX WARNING no type*/>) catch(e:Dynamic) null");
-                            addWarning("as array", true);
+                            write(", Array</*AS3HX WARNING no type/>) catch(e:Dynamic) null");
+                            addWarning("as array", true);*/
+                            write("cast(");
+                            writeExpr(e1);
+                            write(", Array)");
                         case "Class":
                             addWarning("as Class",true);
                             write("Type.getClass(");
